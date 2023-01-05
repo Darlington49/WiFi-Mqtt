@@ -1,0 +1,23 @@
+{
+  "name": "wifi-mqtt",
+  "version": "1.0.0",
+  "description": "(See the README.md file in the upper level 'examples' directory for more information about examples.)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Darlington49/WiFi-Mqtt.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Darlington49/WiFi-Mqtt/issues"
+  },
+  "homepage": "https://github.com/Darlington49/WiFi-Mqtt#readme",
+  "dependencies": {
+    "mqtt": "^4.3.7"
+  }
+}

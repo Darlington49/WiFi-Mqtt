@@ -23,8 +23,8 @@
 
 #include "esp_log.h"
 
-#define EXAMPLE_ESP_WIFI_SSID "AndroidAP9CB9"
-#define EXAMPLE_ESP_WIFI_PASS "00000000"
+#define EXAMPLE_ESP_WIFI_SSID "AndroidAP6E86"
+#define EXAMPLE_ESP_WIFI_PASS "chaimaa14"
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 #define MQTT_CONNECTED BIT2
