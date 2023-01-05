@@ -1,5 +1,5 @@
 #include "mqtt.h"
-static const char *TAG = "MQTT_EXAMPLE";
+static const char *TAG = "MQTT";
 
 static void log_error_if_nonzero(const char *message, int error_code)
 {
@@ -50,8 +50,8 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        ESP_LOGI(TAG, "TOPIC=%.*s\tDATA=%.*s \r\n", event->topic_len, event->topic, event->data_len, event->data);
-        // ESP_LOGI(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
+        ESP_LOGI(TAG, "TOPIC=%.*s\tDATA=%.*s \r", event->topic_len, event->topic, event->data_len, event->data);
+        // ESP_LOGI(TAG, "DATA=%.*s\r", event->data_len, event->data);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -76,7 +76,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     mqtt_event_handler_cb(event_data);
 }
 
-void mqtt_app_start(void)
+void mqttInit(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
         .uri = BROKER_URL,
@@ -84,6 +84,13 @@ void mqtt_app_start(void)
 
     client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
+    // esp_mqtt_client_start(client);
+    // mqttStart();
+}
+
+void mqttStart(void)
+{
+    xEventGroupWaitBits(connectivity_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     esp_mqtt_client_start(client);
 }
 
@@ -93,19 +100,19 @@ void MqttPublisherTask(void *params)
     char topic[50];
     while (true)
     {
-        printf("task to send data to cloud \n");
+        // printf("task to send data to cloud ");
         xEventGroupWaitBits(connectivity_event_group, MQTT_CONNECTED, pdFALSE, pdFALSE, portMAX_DELAY);
 
         if (xQueueReceive(MqttPublishQueue, &payload, portMAX_DELAY) /*&& socket_index > 0*/)
         {
             sprintf(topic, "%s/%s", DEVICEID, payload.topic);
-            ESP_LOGI("MqttPublishQueue", "Queue Len : %d Queue Data %s \n", payload.len, payload.message);
+            ESP_LOGI("MqttPublishQueue", "Queue Len : %d Queue Data %s ", payload.len, payload.message);
             int msg_id = esp_mqtt_client_publish(client, topic, payload.message, 0, 1, 0);
             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         }
         else
         {
-            ESP_LOGE("MqttPublishQueue", "failed to read message to queue\n");
+            ESP_LOGE("MqttPublishQueue", "failed to read message to queue");
         }
 
         vTaskDelay(3000 / portTICK_PERIOD_MS);

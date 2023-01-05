@@ -14,7 +14,6 @@
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
 
-
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
@@ -22,7 +21,6 @@
 #include "esp_log.h"
 #include "mqtt_client.h"
 #include "main.h"
-
 
 #define BROKER_URL "mqtt://test.mosquitto.org"
 #define TOPIC_NAME "/5onr"
@@ -45,5 +43,6 @@ typedef struct payload_t
     int len;
 } payload_t;
 
-void mqtt_app_start(void);
+void mqttInit(void);
 void MqttPublisherTask(void *params);
+void mqttStart(void);

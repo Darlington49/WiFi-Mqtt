@@ -16,7 +16,7 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_netif.h"
-#include "protocol_examples_common.h"
+// #include "protocol_examples_common.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -31,7 +31,7 @@
 #include "esp_log.h"
 #include "mqtt.h"
 #include "main.h"
-static const char *TAG = "Main_MQTT_EXAMPLE";
+static const char *TAG = "Main";
 
 EventGroupHandle_t connectivity_event_group;
 
@@ -40,6 +40,10 @@ EventGroupHandle_t connectivity_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 #define MQTT_CONNECTED BIT2
+
+#define EXAMPLE_ESP_WIFI_SSID "AndroidAP9CB9"
+#define EXAMPLE_ESP_WIFI_PASS "00000000"
+#define EXAMPLE_ESP_MAXIMUM_RETRY 5
 
 xQueueHandle MqttPublishQueue;
 
@@ -68,11 +72,11 @@ int vprintf_into_spiffs(const char *szFormat, va_list args)
         if (xQueueSend(MqttPublishQueue, &payload, 0))
         {
             // break;
-            // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s \n", payload.len, payload.message);
+            // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s ", payload.len, payload.message);
         }
         else
         {
-            printf("MqttPublishQueue:  failed to add message to queue\n");
+            printf("MqttPublishQueue:  failed to add message to queue");
             // break;
         }
     }
@@ -87,25 +91,93 @@ void task2(void *params)
     while (true)
     {
         // ESP_LOGI(TAG, "Queue Task fill ");
-
+        // int random = esp_random();
         memset(payload.message, 0, BUF_SIZE);
-        strcpy(payload.message, message);
+        // strcpy(payload.message, message);
+        sprintf(payload.message, "this is random test :%d", esp_random());
         strcpy(payload.topic, topic);
         payload.len = strlen(message);
 
         if (xQueueSend(MqttPublishQueue, &payload, 0))
         {
-            ESP_LOGI("MqttPublishQueue", "added message to queue Len : %d Queue Data %s \n", payload.len, payload.message);
+            ESP_LOGI("MqttPublishQueue", "added message to queue Len : %d Queue Data %s", payload.len, payload.message);
             // break;
         }
         else
         {
-            ESP_LOGE("MqttPublishQueue", "failed to add message to queue\n");
+            ESP_LOGE("MqttPublishQueue", "failed to add message to queue");
             // break;
         }
 
         vTaskDelay(7000 / portTICK_PERIOD_MS);
     }
+}
+
+static void event_handler(void *arg, esp_event_base_t event_base,
+                          int32_t event_id, void *event_data)
+{
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
+    {
+        esp_wifi_connect();
+        ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
+    }
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
+    {
+        xEventGroupClearBits(connectivity_event_group, WIFI_CONNECTED_BIT);
+        ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
+        esp_wifi_connect();
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
+    {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        xEventGroupSetBits(connectivity_event_group, WIFI_CONNECTED_BIT);
+        mqttStart();
+    }
+}
+
+void wifi_init_sta(void)
+{
+    // ESP_ERROR_CHECK(esp_netif_init());
+
+    // ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &event_handler,
+                                                        NULL,
+                                                        &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        IP_EVENT_STA_GOT_IP,
+                                                        &event_handler,
+                                                        NULL,
+                                                        &instance_got_ip));
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = EXAMPLE_ESP_WIFI_SSID,
+            .password = EXAMPLE_ESP_WIFI_PASS,
+            /* Setting a password implies station will connect to all security modes including WEP/WPA.
+             * However these modes are deprecated and not advisable to be used. Incase your Access point
+             * doesn't support WPA2, these mode can be enabled by commenting below line */
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+
+            .pmf_cfg = {
+                .capable = true,
+                .required = false},
+        },
+    };
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
 }
 
 void app_main(void)
@@ -125,57 +197,18 @@ void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
-     * Read "Establishing Wi-Fi or Ethernet Connection" section in
-     * examples/protocols/README.md for more information about this function.
-     */
-    ESP_ERROR_CHECK(example_connect());
-    esp_log_set_vprintf(&vprintf_into_spiffs);
+    wifi_init_sta();
+    // /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+    //  * Read "Establishing Wi-Fi or Ethernet Connection" section in
+    //  * examples/protocols/README.md for more information about this function.
+    //  */
+    // ESP_ERROR_CHECK(example_connect());
+    // esp_log_set_vprintf(&vprintf_into_spiffs);
     connectivity_event_group = xEventGroupCreate();
     MqttPublishQueue = xQueueCreate(20, sizeof(payload_t));
 
-    xTaskCreate(&MqttPublisherTask, "do something with http", 3048, NULL, 1, NULL);
-    xTaskCreate(&task2, "Simulate", 3048, NULL, 1, NULL);
+    // xTaskCreate(&MqttPublisherTask, "do something with http", 3048, NULL, 1, NULL);
+    // xTaskCreate(&task2, "Simulate", 3048, NULL, 1, NULL);
 
-    mqtt_app_start();
+    mqttInit();
 }
-
-// int logmsg(char *format, va_list args)
-// {
-// 	char str[256];
-// 	/*Extract the the argument list using VA apis */
-
-// 	// va_start(args, format);
-// 	vsprintf(str, format, args);
-// 	va_end(args);
-// 	//printf("From new log Function log size :  %d \n", strlen(str));
-// 	//	printf("%s", str);
-
-// 	//xSemaphoreGive(Log_Semaphore);
-// 	int len;
-// 	// remove newline
-// 	len = strlen(str);
-// 	if (str[len - 1] == '\n')
-// 		str[len - 1] = 0;
-// 	//Write to log queue
-// 	log_payload_t payload;
-
-// 	memset(payload.message, 0, 256);
-// 	memcpy(payload.message, str, strlen(str));
-
-// 	//if (xQueueSendFromISR(log_queue, &payload, pdFALSE))
-// 	if (xQueueSend(log_queue, &payload, 0))
-// 	{
-// 		//	printf("added message to log queue Len : %d Queue Data %s \n", payload.len, payload.message);
-// 		//	printf("added message to log queue  \n");
-
-// 		// break;
-// 	}
-// 	else
-// 	{
-// 		//	printf("failed to add message to log queue\n");
-// 		// break;
-// 	}
-// 	return 1;
-// }
