@@ -115,6 +115,6 @@ void MqttPublisherTask(void *params)
             ESP_LOGE("MqttPublishQueue", "failed to read message to queue");
         }
 
-        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
