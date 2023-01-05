@@ -107,7 +107,7 @@ void MqttPublisherTask(void *params)
         {
             sprintf(topic, "%s/%s", DEVICEID, payload.topic);
             ESP_LOGI("MqttPublishQueue", "Queue Len : %d Queue Data %s ", payload.len, payload.message);
-            int msg_id = esp_mqtt_client_publish(client, topic, payload.message, 0, 1, 0);
+            int msg_id = esp_mqtt_client_publish(client, topic, payload.message, 0, 0, 0);
             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         }
         else

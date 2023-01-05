@@ -32,7 +32,9 @@
 #include "mqtt.h"
 #include "main.h"
 #include "WiFi.h"
+#include "freertos/semphr.h"
 
+xSemaphoreHandle binSemaphore;
 static const char *TAG = "Main";
 
 EventGroupHandle_t connectivity_event_group;
@@ -47,26 +49,22 @@ xQueueHandle MqttPublishQueue;
 
 int vprintf_into_spiffs(const char *szFormat, va_list args)
 {
-    int ret = 0;
-    char log_print_buffer[256];
+    payload_t payload;
+    // memset(payload.message, 0, BUF_SIZE);
 
     // // write evaluated format string into buffer
-    ret = vsnprintf(log_print_buffer, sizeof(log_print_buffer), szFormat, args);
-    payload_t payload;
-
+    // ret = vsnprintf(payload.message, BUF_SIZE, szFormat, args);
+    // memset(payload.message, 0, 256);
+    int ret = vsprintf(payload.message, szFormat, args);
+    strcpy(payload.topic, "log");
+    // va_end(args);
     // output is now in buffer. write to file.
     if (ret >= 0)
     {
-        // // debug output
-        printf(" ppp \t[Writing to SPIFFS] %.*s", ret, log_print_buffer);
-        // int msg_id = esp_mqtt_client_publish(client, "/5onr/log", &log_print_buffer, 0, 1, 0);
-        // printf("sent publish successful, msg_id=%d", msg_id);
-
-        memset(payload.message, 0, BUF_SIZE);
-        strcpy(payload.message, log_print_buffer);
-        strcpy(payload.topic, "log");
-        payload.len = strlen(log_print_buffer);
-
+        //     // // debug output
+        // printf(" ppp \t[Writing to SPIFFS] %.*s", ret, payload.message);
+        // if (xSemaphoreTake(binSemaphore, 0) == pdTRUE)
+        // {
         if (xQueueSend(MqttPublishQueue, &payload, 0))
         {
             // break;
@@ -74,10 +72,35 @@ int vprintf_into_spiffs(const char *szFormat, va_list args)
         }
         else
         {
-            printf("MqttPublishQueue:  failed to add message to queue\n");
+            // printf("MqttPublishQueue:  failed to add message to queue\n");
             // break;
         }
     }
+    //     xSemaphoreGive(binSemaphore);
+    // }
+    // else
+    // {
+    //     printf("We could not obtain the semaphore and can therefore not accessthe shared resource safely.\n");
+    // }
+
+    // xSemaphoreTake(binSemaphore, 0);
+    // the probleme is here the data is getting duplicated need to be protected
+    //     strcpy(payload.topic, "log");
+    //     payload.len = strlen(log_print_buffer);
+
+    // if (xQueueSend(MqttPublishQueue, &payload, 0))
+    // {
+    //     // break;
+    //     // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s ", payload.len, payload.message);
+    // }
+    // else
+    // {
+    //     printf("MqttPublishQueue:  failed to add message to queue\n");
+    //     // break;
+    // }
+    // }
+    // memset(log_print_buffer, 0, 256);
+    // xSemaphoreGive(binSemaphore);
     return ret;
 }
 
@@ -131,7 +154,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_init_sta();
-
+    binSemaphore = xSemaphoreCreateBinary();
     esp_log_set_vprintf(&vprintf_into_spiffs);
     connectivity_event_group = xEventGroupCreate();
     MqttPublishQueue = xQueueCreate(30, sizeof(payload_t));
@@ -141,3 +164,42 @@ void app_main(void)
 
     mqttInit();
 }
+
+// int logmsg(char *format, va_list args)
+// {
+//     char str[256];
+//     /*Extract the the argument list using VA apis */
+
+//     // va_start(args, format);
+//     vsprintf(str, format, args);
+//     va_end(args);
+//     // printf("From new log Function log size :  %d \n", strlen(str));
+//     //	printf("%s", str);
+
+//     // xSemaphoreGive(Log_Semaphore);
+//     int len;
+//     // remove newline
+//     len = strlen(str);
+//     if (str[len - 1] == '\n')
+//         str[len - 1] = 0;
+//     // Write to log queue
+//     log_payload_t payload;
+
+//     memset(payload.message, 0, 256);
+//     memcpy(payload.message, str, strlen(str));
+
+//     // if (xQueueSendFromISR(log_queue, &payload, pdFALSE))
+//     if (xQueueSend(log_queue, &payload, 0))
+//     {
+//         //	printf("added message to log queue Len : %d Queue Data %s \n", payload.len, payload.message);
+//         //	printf("added message to log queue  \n");
+
+//         // break;
+//     }
+//     else
+//     {
+//         //	printf("failed to add message to log queue\n");
+//         // break;
+//     }
+//     return 1;
+// }
