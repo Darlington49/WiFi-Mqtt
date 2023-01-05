@@ -67,12 +67,12 @@ int vprintf_into_spiffs(const char *szFormat, va_list args)
 
         if (xQueueSend(MqttPublishQueue, &payload, 0))
         {
-            ESP_LOGI("MqttPublishQueue", "added message to queue Len : %d Queue Data %s \n", payload.len, payload.message);
             // break;
+            // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s \n", payload.len, payload.message);
         }
         else
         {
-            ESP_LOGE("MqttPublishQueue", "failed to add message to queue\n");
+            printf("MqttPublishQueue:  failed to add message to queue\n");
             // break;
         }
     }
@@ -86,7 +86,7 @@ void task2(void *params)
     char topic[] = "data";
     while (true)
     {
-        ESP_LOGI(TAG, "Queue Task fill ");
+        // ESP_LOGI(TAG, "Queue Task fill ");
 
         memset(payload.message, 0, BUF_SIZE);
         strcpy(payload.message, message);
@@ -133,10 +133,10 @@ void app_main(void)
     ESP_ERROR_CHECK(example_connect());
     esp_log_set_vprintf(&vprintf_into_spiffs);
     connectivity_event_group = xEventGroupCreate();
-    MqttPublishQueue = xQueueCreate(10, sizeof(payload_t));
+    MqttPublishQueue = xQueueCreate(20, sizeof(payload_t));
 
-    xTaskCreate(&MqttPublisherTask, "do something with http", 2048, NULL, 1, NULL);
-    xTaskCreate(&task2, "Simulate", 2048, NULL, 1, NULL);
+    xTaskCreate(&MqttPublisherTask, "do something with http", 3048, NULL, 1, NULL);
+    xTaskCreate(&task2, "Simulate", 3048, NULL, 1, NULL);
 
     mqtt_app_start();
 }
