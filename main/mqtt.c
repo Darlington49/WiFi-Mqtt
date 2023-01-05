@@ -24,7 +24,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         // msg_id = esp_mqtt_client_subscribe(client, "/5onr", 0);
         // ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "/5onr", 1);
+        msg_id = esp_mqtt_client_subscribe(client, DEVICEID"/cmd", 1);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
         // msg_id = esp_mqtt_client_unsubscribe(client, "/5onr");
@@ -50,7 +50,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        ESP_LOGI(TAG, "TOPIC=%.*s\tDATA=%.*s \r", event->topic_len, event->topic, event->data_len, event->data);
+        ESP_LOGW(TAG, "TOPIC=%.*s\tDATA=%.*s \r", event->topic_len, event->topic, event->data_len, event->data);
         // ESP_LOGI(TAG, "DATA=%.*s\r", event->data_len, event->data);
         break;
     case MQTT_EVENT_ERROR:
