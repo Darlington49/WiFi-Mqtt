@@ -2,6 +2,7 @@
     "files.associations": {
         "mqtt.h": "c",
         "main.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "wifi.h": "c"
     }
 }
