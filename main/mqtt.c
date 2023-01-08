@@ -24,7 +24,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         // msg_id = esp_mqtt_client_subscribe(client, "/5onr", 0);
         // ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, DEVICEID"/cmd", 1);
+        msg_id = esp_mqtt_client_subscribe(client, DEVICEID "/cmd", 1);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
         // msg_id = esp_mqtt_client_unsubscribe(client, "/5onr");
@@ -98,6 +98,7 @@ void MqttPublisherTask(void *params)
 {
     payload_t payload;
     char topic[50];
+    char data[384];
     while (true)
     {
         // printf("task to send data to cloud ");
@@ -105,10 +106,12 @@ void MqttPublisherTask(void *params)
 
         if (xQueueReceive(MqttPublishQueue, &payload, portMAX_DELAY) /*&& socket_index > 0*/)
         {
-            sprintf(topic, "%s/%s", DEVICEID, payload.topic);
+            sprintf(topic, "YCHF/%s/%s", payload.topic, DEVICEID);
+            sprintf(data, "{'topic':'%s' ,'data':'%s'}", payload.topic, payload.message);
             ESP_LOGI("MqttPublishQueue", "Queue Len : %d Queue Data %s ", payload.len, payload.message);
-            int msg_id = esp_mqtt_client_publish(client, topic, payload.message, 0, 0, 0);
+            int msg_id = esp_mqtt_client_publish(client, topic, data, 0, 0, 0);
             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+            // printf(" ppp \t[Writing to SPIFFS] %s", data);
         }
         else
         {

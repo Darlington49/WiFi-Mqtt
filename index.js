@@ -80,7 +80,9 @@ var options = {
   qos: 1,
 };
 var topic = "testtopic";
-var gpstopic = "DZ00889654/#";
+var logTopic = "YCHF/#";
+// var dataTopic = "data/DZ00889654";
 
 console.log("subscribing to topics");
-client.subscribe(gpstopic, { qos: 1 }); //single topic
+client.subscribe(logTopic, { qos: 1 }); //single topic
+// client.subscribe(dataTopic, { qos: 1 }); //single topic
