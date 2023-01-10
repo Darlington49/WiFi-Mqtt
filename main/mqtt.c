@@ -107,7 +107,7 @@ void MqttPublisherTask(void *params)
         if (xQueueReceive(MqttPublishQueue, &payload, portMAX_DELAY) /*&& socket_index > 0*/)
         {
             sprintf(topic, "YCHF/%s/%s", payload.topic, DEVICEID);
-            sprintf(data, "{'topic':'%s' ,'data':'%s'}", payload.topic, payload.message);
+            sprintf(data, "{'topic':'%s' ,'data':'%s' ,'deviceID':'%s'}", payload.topic, payload.message,DEVICEID);
             ESP_LOGI("MqttPublishQueue", "Queue Len : %d Queue Data %s ", payload.len, payload.message);
             int msg_id = esp_mqtt_client_publish(client, topic, data, 0, 0, 0);
             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
