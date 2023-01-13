@@ -18,6 +18,7 @@
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
 
+#include "cJSON.h"
 #include "esp_log.h"
 #include "mqtt_client.h"
 #include "main.h"

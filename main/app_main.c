@@ -50,58 +50,50 @@ xQueueHandle MqttPublishQueue;
 int vprintf_into_spiffs(const char *szFormat, va_list args)
 {
     payload_t payload;
-    // memset(payload.message, 0, BUF_SIZE);
-
-    // // write evaluated format string into buffer
-    // ret = vsnprintf(payload.message, BUF_SIZE, szFormat, args);
-    // memset(payload.message, 0, 256);
-    int ret = vsprintf(payload.message, szFormat, args);
-    strcpy(payload.topic, "log");
-    // va_end(args);
-    // output is now in buffer. write to file.
-    if (ret >= 0)
+    static bool log_in_progress = false;
+    if (log_in_progress)
     {
-        //     // // debug output
-        // printf(" ppp \t[Writing to SPIFFS] %.*s", ret, payload.message);
-        // if (xSemaphoreTake(binSemaphore, 0) == pdTRUE)
-        // {
-        if (xQueueSend(MqttPublishQueue, &payload, 0))
-        {
-            // break;
-            // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s ", payload.len, payload.message);
-        }
-        else
-        {
-            // printf("MqttPublishQueue:  failed to add message to queue\n");
-            // break;
-        }
+        return 0;
     }
-    //     xSemaphoreGive(binSemaphore);
-    // }
-    // else
-    // {
-    //     printf("We could not obtain the semaphore and can therefore not accessthe shared resource safely.\n");
-    // }
 
-    // xSemaphoreTake(binSemaphore, 0);
-    // the probleme is here the data is getting duplicated need to be protected
-    //     strcpy(payload.topic, "log");
-    //     payload.len = strlen(log_print_buffer);
+    int buffer_size = vsnprintf(NULL, 0, szFormat, args) + 1; // +1 for NULL
 
-    // if (xQueueSend(MqttPublishQueue, &payload, 0))
-    // {
-    //     // break;
-    //     // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s ", payload.len, payload.message);
+    if (buffer_size <= 0)
+    {
+        return 0;
+    }
+
+    // Temporarily allocate a buffer to store the message
+    char *msg_buffer = malloc(buffer_size);
+    if (!msg_buffer)
+    {
+        return 0;
+    }
+
+    vsnprintf(msg_buffer, buffer_size, szFormat, args);
+
+    strcpy(payload.message, msg_buffer);
+    // int ret = vsprintf(payload.message, szFormat, args);
+    strcpy(payload.topic, "log");
+
+    log_in_progress = true;
+
+    // if (ret >= 0){
+    // printf(" ppp \t[Writing to SPIFFS] %.*s", ret, payload.message);
+    if (xQueueSend(MqttPublishQueue, &payload, 0))
+    {
+        // break;
+        // printf("MqttPublishQueue: added message to queue Len : %d Queue Data %s ", payload.len, payload.message);
+    }
+    else
+    {
+        // printf("MqttPublishQueue:  failed to add message to queue\n");
+        // break;
+    }
     // }
-    // else
-    // {
-    //     printf("MqttPublishQueue:  failed to add message to queue\n");
-    //     // break;
-    // }
-    // }
-    // memset(log_print_buffer, 0, 256);
-    // xSemaphoreGive(binSemaphore);
-    return ret;
+    log_in_progress = false;
+
+    return buffer_size;
 }
 
 void task2(void *params)
@@ -140,7 +132,7 @@ void app_main(void)
     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
-    // esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("MQTT", ESP_LOG_WARN);
     esp_log_level_set("MqttPublishQueue", ESP_LOG_WARN);
     esp_log_level_set("Main", ESP_LOG_VERBOSE);

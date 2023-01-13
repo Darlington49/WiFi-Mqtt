@@ -94,11 +94,22 @@ void mqttStart(void)
     esp_mqtt_client_start(client);
 }
 
+void removeChar(char *str, char garbage) {
+
+    char *src, *dst;
+    for (src = dst = str; *src != '\0'; src++) {
+        *dst = *src;
+        if (*dst != garbage) dst++;
+    }
+    *dst = '\0';
+}
+
 void MqttPublisherTask(void *params)
 {
     payload_t payload;
     char topic[50];
     char data[384];
+
     while (true)
     {
         // printf("task to send data to cloud ");
@@ -106,12 +117,25 @@ void MqttPublisherTask(void *params)
 
         if (xQueueReceive(MqttPublishQueue, &payload, portMAX_DELAY) /*&& socket_index > 0*/)
         {
+            removeChar(payload.message, ':');
+            // cJSON *json;
+            cJSON *json = cJSON_CreateObject();
+            cJSON_AddStringToObject(json, "topic", payload.topic);
+            cJSON_AddStringToObject(json, "data", payload.message);
+            cJSON_AddStringToObject(json, "deviceID", DEVICEID);
+            char *my_json_string = cJSON_Print(json);
+            ESP_LOGI(TAG, "my_json_string\n%s", my_json_string);
+            // YCHF/data/DZ00889654
+            // YCHF/log/DZ00889654
             sprintf(topic, "YCHF/%s/%s", payload.topic, DEVICEID);
-            sprintf(data, "{'topic':'%s' ,'data':'%s' ,'deviceID':'%s'}", payload.topic, payload.message,DEVICEID);
+            // sprintf(data, "{'topic':'%s' ,'data':'%s' ,'deviceID':'%s'}", payload.topic, payload.message, DEVICEID);
+
             ESP_LOGI("MqttPublishQueue", "Queue Len : %d Queue Data %s ", payload.len, payload.message);
-            int msg_id = esp_mqtt_client_publish(client, topic, data, 0, 0, 0);
+            int msg_id = esp_mqtt_client_publish(client, topic, my_json_string, 0, 0, 0);
             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             // printf(" ppp \t[Writing to SPIFFS] %s", data);
+            cJSON_Delete(json);
+            cJSON_free(my_json_string);
         }
         else
         {

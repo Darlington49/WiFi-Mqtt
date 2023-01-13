@@ -1,74 +1,50 @@
+const MongoClient = require("mongodb").MongoClient;
 const mqtt = require("mqtt");
 const client = mqtt.connect("mqtt://test.mosquitto.org");
 
-// const express = require("express");
-// const app = express();
-// const port = process.env.PORT;
-
-// app.use(express.static("public"));
-// app.use("/static", express.static("public"));
-
-// // app.get("/", (req, res) => {
-// //   res.send("Hello World!");
-// // });
-// // sendFile will go here
-// app.get("/", function (req, res) {
-//   res.sendFile(path.join(__dirname, "/index.html"));
-// });
-// app.get("/payloads", function (req, res) {
-
-//   Payload.find({}).then(function (payloads) {
-//     res.send(payloads);
-//   });
-// });
-// app.listen(port, () => {
-//   console.log(`Example app listening on port ${port}`);
-// });
-
-// const mongoose = require("mongoose");
-// const { Payload } = require("./Payload");
-// const connect = mongoose
-//   // .connect(mongoURI, {
-//   .connect(process.env.mongoURI, {
-//     // useNewUrlParser: true,
-//     // useUnifiedTopology: true,
-//     // useCreateIndex: true,
-//     // useFindAndModify: false,
-//   })
-//   .then(() => console.log("MongoDB Connected..."))
-//   .catch((err) => console.log(err));
-
-//publish
-function publish(topic, msg, options) {
-  console.log("publishing", msg);
-
-  if (client.connected == true) {
-    client.publish(topic, msg, options);
+const pipeline = [
+  {
+    //$project: { documentKey: false },
+    $match: {
+      'operationType': 'insert',
+      // 'fullDocument.topic': 'log',
+    },
   }
-  count += 1;
-}
+];
+MongoClient.connect('mongodb+srv://user1:azerty@cluster0.kqxrfop.mongodb.net')
+  .then(client => {
+    console.log("Connected correctly to server");
+    // specify db and collections
+    const db = client.db("db2");
+    const collection = db.collection("data");
 
-client.on("connect", function () {
-  //   client.subscribe("presence", function (err) {
-  //     if (!err) {
-  //       client.publish("presence", "Hello mqtt");
-  //     }
-  //   });
+    const changeStream = collection.watch(pipeline);
+    // start listen to changes
+    changeStream.on("change", function(change) {
+      const Document = change.fullDocument;
+      console.log(`DB:\tDevice:${Document.deviceID}\tTopic:${Document.topic}\tData:${Document.data}`);
+    });
+    // insert few data with timeout so that we can watch it happening
+  })
+  .catch(err => {
+    console.error(err);
+  });
+
+client.on("connect", function() {
+  console.log("MQTT Connecetde");
 });
 
-client.on("message", function (topic, msg) {
-  // msg is Buffer
-  // console.log("\t\tmessage : " + msg.toString());
-  // console.log("\t\ttopic  : " + topic);
-  console.log(topic, " : ", msg.toString());
+client.on("message", function(topic, msg) {
+  // console.log(topic, " : ", msg.toString());
+  console.log("MQTT\t", topic, "\t", msg.toString());
 });
 
-client.on("connect", function () {
+client.on("connect", function() {
   console.log("connected  " + client.connected);
 });
 
 //handle errors
-client.on("error", function (error) {
+client.on("error", function(error) {
   console.log("Can't connect" + error);
   process.exit(1);
 });
