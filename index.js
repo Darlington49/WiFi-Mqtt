@@ -1,86 +1,102 @@
-<!-- <!DOCTYPE html>
-<html>
- <head>
-   <title>Socket.IO chat</title>
-   <style>
-     body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+const express = require("express");
+// const xterm = require("xterm");
+const app = express();
+const http = require("http");
+const server = http.createServer(app);
+const MongoClient = require("mongodb").MongoClient;
+const mqtt = require("mqtt");
+const client = mqtt.connect("mqtt://test.mosquitto.org");
+const { Server } = require("socket.io");
+const io = new Server(server);
 
-     #messages { list-style-type: none; margin: 0; padding: 0; }
-     #messages > li { padding: 0.5rem 1rem; }
-     #messages > li:nth-child(odd) { background: #efefef; }
-   </style>
- </head>
- <body>
-<h1>Hello </h1> 
-   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-   <script>
-     console.log("start Script");
-       var socket = io();
-       var messages = document.getElementById('messages');
+const pipeline = [
+  {
+    //$project: { documentKey: false },
+    $match: {
+      operationType: "insert",
+      // 'fullDocument.topic': 'log',
+    },
+  },
+];
+MongoClient.connect("mongodb+srv://user1:azerty@cluster0.kqxrfop.mongodb.net")
+  .then((client) => {
+    console.log("Connected correctly to server");
+    // specify db and collections
+    const db = client.db("db2");
+    const DataCollection = db.collection("data");
+    const LogCollection = db.collection("log");
 
-       socket.on('data', function(msg) {
-         console.log('data:\t',msg);
-       });
+    const DataChangeStream = DataCollection.watch(pipeline);
+    // start listen to changes
+    DataChangeStream.on("change", function (change) {
+      const Document = change.fullDocument;
+      console.log(
+        `DB:\t\tDevice:${Document.deviceID}\tTopic:${Document.topic}\tData:${Document.data}`
+      );
+      // console.log(change);
+      io.emit("data", change.fullDocument);
+    });
 
-          socket.on('log', function(msg) {
-         console.log('log:\t',msg);
-       });
+    const LogChangeStream = LogCollection.watch(pipeline);
+    // start listen to changes
+    LogChangeStream.on("change", function (change) {
+      const Document = change.fullDocument;
+      console.log(
+        `DB:\t\tDevice:${Document.deviceID}\tTopic:${Document.topic}\tData:${Document.data}`
+      );
+      io.emit("log", change.fullDocument);
 
-     
-   </script>
-</body>
-</html> -->
+      // console.log(change);
+    });
+  })
+  .catch((err) => {
+    console.error(err);
+  });
 
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Socket.IO chat</title>
-    <style>
-      body {
-        margin: 0;
-        padding-bottom: 3rem;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Helvetica, Arial, sans-serif;
-        background:black;
-      }
+client.on("connect", function () {
+  console.log("MQTT Connecetde");
+});
 
+client.on("message", function (topic, msg) {
+  // console.log(topic, " : ", msg.toString());
+  console.log("MQTT\t", topic /* , "\t", msg.toString()*/);
+});
 
-      #messages {
-        list-style-type: none;
-        margin: 0;
-        padding: 0;
-        color:white
-      }
-/*       #messages > li {
-        padding: 0.5rem 1rem;
-      } */
+client.on("connect", function () {
+  console.log("connected  " + client.connected);
+});
 
-    </style>
-  </head>
-  <body>
-    <ul id="messages"></ul>
+//handle errors
+client.on("error", function (error) {
+  console.log("Can't connect" + error);
+  process.exit(1);
+});
 
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script>
-      console.log("start Script");
-      var socket = io();
-      var form = document.getElementById("form");
+//////////////
 
-      socket.on("data", function (msg) {
-        console.log("data:\t", msg);
-        var item = document.createElement("li");
-        item.textContent = `Topic:\t${msg.topic}\tData:${msg.data}\tDevice:${msg.deviceID}`;
-        messages.appendChild(item);
-        window.scrollTo(0, document.body.scrollHeight);
-      });
+var options = {
+  retain: true,
+  qos: 1,
+};
+var topic = "testtopic";
+var logTopic = "YCHF/#";
+// var dataTopic = "data/DZ00889654";
 
-      socket.on("log", function (msg) {
-        console.log("log:\t", msg);
-        var item = document.createElement("li");
-        item.textContent = `Topic:\t${msg.topic}\tData:${msg.data}\tDevice:${msg.deviceID}`;
-        messages.appendChild(item);
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-    </script>
-  </body>
-</html>
+console.log("subscribing to topics");
+client.subscribe(logTopic, { qos: 1 }); //single topic
+// client.subscribe(dataTopic, { qos: 1 }); //single topic
+
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
+app.get("/xterm.js", (req, res) => {
+  res.sendFile(__dirname + "/node_modules/xterm/lib/xterm.js");
+});
+
+app.get("/xterm.css", (req, res) => {
+  res.sendFile(__dirname + "/node_modules/xterm/css/xterm.css");
+});
+server.listen(3000, () => {
+  console.log("listening on *:3000");
+});
